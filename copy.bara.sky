@@ -1,0 +1,37 @@
+# Copybara configuration for Image ID Feed synchronization.
+# Upstream: Piper (google3/storage/speckle/tools/image_manifest/...)
+# Downstream: GitHub Repository
+
+# Example usage for mapping a specific RC:
+# copybara storage/speckle/tools/image_manifest/copy.bara.sky push_images_to_github \
+#   --init-history --squash --dry-run
+
+source_path = "storage/speckle/tools/image_manifest"
+
+core.workflow(
+    name = "push_images_to_github",
+    origin = piper.origin(),
+    origin_files = glob(["google3/" + source_path + "/**"]),
+    destination = git.github_destination(
+        # Replace with your real organization and repository
+        url = "https://github.com/msaltogoog/images-test",
+        push = "main",
+    ),
+    authoring = authoring.overwrite("Cloud SQL Automation <noreply@google.com>"),
+    transformations = [
+        # Flatten directory structure and remove google3 prefix
+        core.move("google3/" + source_path, ""),
+
+        # Remove POC-only traceability fields from the JSON content
+        # This keeps the internal Piper metadata for debugging while
+        # keeping the public feed lean.
+        core.replace(
+            before = r'',
+            after = "",
+            multiline = True,
+        ),
+
+        # Perform security scrubbing
+        leakr.check(),
+    ],
+)
